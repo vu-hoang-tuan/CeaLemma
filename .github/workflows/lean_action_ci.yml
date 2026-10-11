@@ -5,17 +5,105 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read # Read access to repository contents
-  pages: write # Write access to GitHub Pages
-  id-token: write # Write access to ID tokens
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v7
       - uses: leanprover/lean-action@v1
-      - uses: leanprover-community/docgen-action@v1
+
+  docs:
+    name: Build documentation
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      artifact_name: ${{ steps.artifact-name.outputs.name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check GitHub Pages configuration
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Set up Lean and restore build cache
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+
+      - name: Configure the documentation project
+        shell: bash
+        run: |
+          set -euo pipefail
+          lean_toolchain=$(tr -d '\r\n' < lean-toolchain)
+          docgen_ref="${lean_toolchain##*:}"
+          mkdir -p docbuild
+          cp lean-toolchain docbuild/lean-toolchain
+          cat > docbuild/lakefile.toml <<EOF
+          name = "docbuild"
+          reservoir = false
+          version = "0.1.0"
+          packagesDir = "../.lake/packages"
+
+          [[require]]
+          name = "CeaLemma"
+          path = "../"
+
+          [[require]]
+          scope = "leanprover"
+          name = "doc-gen4"
+          rev = "${docgen_ref}"
+          EOF
+
+      - name: Build API documentation
+        working-directory: docbuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          MATHLIB_NO_CACHE_ON_UPDATE=1 lake update CeaLemma
+          lake build CeaLemma:docs
+          test -f .lake/build/doc/index.html
+          mkdir -p ../.pages
+          cp -r .lake/build/doc ../.pages/docs
+
+      - name: Choose a unique artifact name
+        id: artifact-name
+        env:
+          PAGES_ARTIFACT: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+        run: printf 'name=%s\n' "$PAGES_ARTIFACT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload documentation
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: .pages
+
+  deploy:
+    name: Deploy documentation
+    needs: docs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          # Reuse the successful build's name when only the deployment job is retried.
+          artifact_name: ${{ needs.docs.outputs.artifact_name }}
