@@ -3,7 +3,16 @@ name: Phase 2 verification
 on:
   workflow_dispatch:
   push:
-    branches: [codex/mathlib-cea-phase1]
+    branches: [main]
+    paths:
+      - '**/*.lean'
+      - lean-toolchain
+      - lakefile.toml
+      - lake-manifest.json
+      - .github/workflows/phase2-verification.yml
+
+  pull_request:
+    branches: [main]
     paths:
       - '**/*.lean'
       - lean-toolchain

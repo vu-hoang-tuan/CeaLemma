@@ -4,9 +4,11 @@ Dự án hình thức hóa chặn sai số gần tối ưu của phương pháp 
 đóng góp module `Mathlib.Analysis.Normed.Operator.Cea` vào Mathlib.
 Đây là thư viện định lý về xấp xỉ, không phải chương trình giải PDE bằng phương pháp số.
 
-**Trạng thái:** đã sửa lỗi khử nhân tử và xung đột module được CI phát hiện trong
-Phase 2, đồng thời bổ sung lint driver. Bản sửa này chưa được xác minh lại;
-chưa có kết quả build, lint hoặc kiểm tra phụ thuộc tiên đề thành công.
+**Trạng thái:** Phase 2 đã PASS cho mã nguồn tại commit
+[`8d347c4`](https://github.com/vu-hoang-tuan/CeaLemma/commit/8d347c423a39a7d8ff16705c4eb806f085590ef0)
+ngày 12/10/2026: build, lint và audit tiên đề downstream; build, lint khai báo,
+kiểm tra phong cách và liệt kê tiên đề trong checkout Mathlib đích.
+Xem [log Phase 2](https://github.com/vu-hoang-tuan/CeaLemma/actions/runs/38240537710).
 
 ## Phát biểu toán học
 
@@ -137,7 +139,8 @@ Chặn cưỡng bức dùng tích `α * ‖v‖ * ‖v‖`, tương đương `α
 
 `Metric.infDist` thay thế tập `approxErrors` và `bestApproxError`; trên không gian con
 không rỗng, nó biểu diễn cùng infimum khoảng cách. Các tên cũ được bỏ, không giữ alias.
-Các đoạn Lean trong README là hướng dẫn sử dụng, chưa được biên dịch trong Phase 1.
+Các đoạn Lean trong README là hướng dẫn sử dụng; workflow kiểm tra các module nguồn,
+không biên dịch riêng từng đoạn ví dụ trong README.
 
 ## Tệp và môi trường
 
@@ -149,6 +152,7 @@ Các đoạn Lean trong README là hướng dẫn sử dụng, chưa được bi
 | [`lake-manifest.json`](lake-manifest.json) | Khóa commit phụ thuộc. |
 | [`lean-toolchain`](lean-toolchain) | Toolchain của Mathlib tại commit đích. |
 | [`LICENSE`](LICENSE) | Giấy phép Apache 2.0. |
+| [`.github/workflows/phase2-verification.yml`](.github/workflows/phase2-verification.yml) | Build, lint và audit tiên đề; kiểm tra module trong checkout Mathlib đích. |
 
 Đích là Mathlib `master` tại commit
 [`dde65624ecc7ebb09c14a4c2d5a13bedc94c939c`](https://github.com/leanprover-community/mathlib4/commit/dde65624ecc7ebb09c14a4c2d5a13bedc94c939c),
@@ -164,31 +168,43 @@ Khi đưa module vào checkout upstream, cần thêm
 `Mathlib.lean`. Wrapper `CeaLemma.lean`, cấu hình Lake và workflow downstream không
 thuộc phần đóng góp upstream.
 
-## Xác minh — tách biệt với lượt sửa
+## Kết quả xác minh và cách chạy lại
 
-CI của commit `75517510d3f6d866e6608eab4a79f31258ed0c32` đã báo hai lỗi:
-Lake tìm module mới trong dependency Mathlib thay vì nguồn downstream; bước khử
-nhân tử dùng `mul_le_mul_iff_right₀` trong khi nhân tử chung nằm bên phải.
-Bản sửa dùng module local `Cea` và `mul_le_mul_iff_left₀` tương ứng.
-Phát biểu và giả thiết của các định lý được giữ nguyên.
+[Phase 2 tại commit `8d347c4`](https://github.com/vu-hoang-tuan/CeaLemma/actions/runs/38240537710)
+hoàn tất thành công ngày 12/10/2026 với Lean 4.35.0-rc4 và Mathlib tại commit đã khóa.
 
-CI trước đó bỏ qua `lake lint` vì chưa có lint driver. Cấu hình mới dùng
-`batteries/runLinter` với đối số `Cea` để chọn các khai báo theo module nguồn,
-kể cả các khai báo trong namespace `ContinuousLinearMap` và `IsCoercive`.
-Các linter cú pháp trong `mathlibStandardSet`, header và độ dài tệp vẫn được bật.
+| Kiểm tra | Kết quả |
+| --- | --- |
+| `lake build` trong dự án | PASS — 1934 jobs, gồm `Cea` và `CeaLemma`. |
+| `lake lint` | PASS — linter chạy trên module `Cea`. |
+| `axiom-audit` | PASS — kiểm tra cả bốn khai báo. |
+| `lake build Mathlib.Analysis.Normed.Operator.Cea` trong checkout upstream | PASS — 1931 jobs. |
+| `lake exe batteries/runLinter --no-build Mathlib.Analysis.Normed.Operator.Cea` | PASS. |
+| `lake exe lint-style Mathlib.CeaPhase2Imports` | PASS — driver tạm import module đóng góp để chọn đúng tệp cần lint. |
+| `lake env lean --stdin` với bốn lệnh `#print axioms` | PASS. |
+| `git diff --exit-code` trên dự án sau kiểm tra | PASS — không sửa mã nguồn trong quá trình xác minh. |
 
-Lượt sửa này không chạy build, lint hoặc kiểm tra proof. Mỗi lượt Phase 2 cần
-yêu cầu riêng và không sửa tệp nguồn. Các lệnh chính dành cho Phase 2:
+Cả bốn định lý chỉ phụ thuộc `propext`, `Classical.choice` và `Quot.sound`;
+audit không phát hiện `sorryAx` hoặc tiên đề ngoài danh sách cho phép.
+Log không có lỗi hay cảnh báo. Kết quả này áp dụng cho snapshot đã ghi rõ ở trên.
+
+Sau khi cài Lean qua `elan`, chạy trong thư mục dự án:
 
 ```bash
+lake exe cache get
 lake build
 lake build Cea
 lake lint
 ```
 
-Ngoài các lệnh này, Phase 2 cần review phát biểu và giả thiết, kiểm tra phong cách,
-placeholder và phụ thuộc tiên đề, đồng thời ghi nguyên lệnh cùng kết quả thực tế.
-Cần xác minh riêng đường dẫn module khi tích hợp vào checkout Mathlib upstream.
+Workflow `Phase 2 verification` chạy khi mã Lean, cấu hình toolchain/dependency hoặc
+chính workflow thay đổi trên `main` hay trong PR vào `main`; có thể chạy thủ công
+qua `workflow_dispatch`. Workflow kiểm tra đúng commit kích hoạt, sao chép nguyên
+module vào checkout Mathlib tạm và kiểm tra mã nguồn dự án không bị sửa.
+
+Lượt sửa và lượt xác minh được tách biệt. Trước khi nộp vào Mathlib, người đóng góp
+cần review proof và thêm import tương ứng vào `Mathlib.lean`; khi đổi snapshot
+Mathlib hoặc mã nguồn, cần chạy lại các kiểm tra.
 
 ## Quy ước đóng góp và hỗ trợ AI
 
@@ -212,6 +228,5 @@ thế review của người am hiểu Lean hoặc kiểm tra proof bằng Lean.
 Trước khi nộp upstream, người đóng góp cần tự hiểu và chịu trách nhiệm về code,
 khai báo công cụ và phạm vi sử dụng AI trong mô tả PR, và áp dụng nhãn `LLM-generated`
 theo chính sách Mathlib. Chính sách không cho phép dùng LLM để viết bình luận trên
-GitHub hoặc Zulip. Ghi nhận này là tài liệu của repository. Theo yêu cầu của chủ dự án,
-các bản sửa được đẩy lên nhánh `codex/mathlib-cea-phase1`; chưa mở PR upstream
-hay đăng bình luận.
+GitHub hoặc Zulip. Ghi nhận này là tài liệu của repository; lịch sử commit lưu
+các thay đổi có hỗ trợ AI. Chưa mở PR upstream hay đăng bình luận.
