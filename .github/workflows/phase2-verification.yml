@@ -4,7 +4,12 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/mathlib-cea-phase1]
-    paths: [.github/workflows/phase2-verification.yml]
+    paths:
+      - '**/*.lean'
+      - lean-toolchain
+      - lakefile.toml
+      - lake-manifest.json
+      - .github/workflows/phase2-verification.yml
 
 permissions:
   contents: read
@@ -17,7 +22,7 @@ jobs:
       - name: Check out the source under verification
         uses: actions/checkout@v7
         with:
-          ref: 2b30b526e097b825861561447e6be35b717ec4db
+          ref: ${{ github.sha }}
           path: project
 
       - name: Build, lint, and audit downstream axioms
