@@ -4,8 +4,9 @@ Dự án hình thức hóa chặn sai số gần tối ưu của phương pháp 
 đóng góp module `Mathlib.Analysis.Normed.Operator.Cea` vào Mathlib.
 Đây là thư viện định lý về xấp xỉ, không phải chương trình giải PDE bằng phương pháp số.
 
-**Trạng thái:** bản refactor Phase 1; chưa chạy build, linter, kiểm tra tiên đề hoặc
-review bản code và README sau chỉnh sửa. Các bước xác minh thuộc Phase 2 riêng biệt.
+**Trạng thái:** đang sửa các vấn đề phát hiện trong Phase 2. Lượt kiểm tra trước đã
+review tĩnh phát biểu và giả thiết; các lệnh build, linter và kiểm tra tiên đề bị chặn
+ở bước thiết lập dependency. Chưa có kết quả biên dịch thành công cho bản refactor.
 
 ## Phát biểu toán học
 
@@ -86,7 +87,8 @@ không gian con, `u` cho nghiệm, `uₕ` cho xấp xỉ, `vₕ` cho vectơ so s
 4. Từ `IsCoercive B`, lấy một hằng số cưỡng bức rồi chọn hệ số gần tối ưu `‖B‖ / α`.
 
 Các bổ đề bao quanh tính song tuyến tính, chặn tại vectơ sai số và infimum tự định nghĩa
-được thay bằng API Mathlib. Không còn module chẩn đoán được import vào thư viện.
+được thay bằng API Mathlib. Các module cũ `BilinearForm`, `Galerkin`, `CeaBound`,
+`CeaFinal` và `Verify` được loại bỏ; thư viện chỉ chứa module đóng góp và wrapper.
 
 ## Sử dụng và chuyển từ API cũ
 
@@ -156,11 +158,18 @@ Khi đưa module vào checkout upstream, cần thêm
 `Mathlib.lean`. Wrapper `CeaLemma.lean`, cấu hình Lake và workflow downstream không
 thuộc phần đóng góp upstream.
 
-## Xác minh — dành riêng cho Phase 2
+## Xác minh — tách biệt với lượt sửa
 
-Phase 1 chỉ sửa mã nguồn, cấu hình và tài liệu. Chưa có kết luận về khả năng biên dịch,
-các linter, phụ thuộc tiên đề hoặc tính đúng của bản chỉnh sửa.
-Phase 2 chỉ bắt đầu khi có yêu cầu riêng và không sửa tệp nguồn.
+Phase 2 trước đó không thay đổi tệp nguồn. Review phát hiện bốn module cũ còn sót
+và import tới `CeaLemma.BilinearForm` đã bị xóa; lượt sửa này loại bỏ các module đó.
+Cấu hình downstream cũng bỏ hai tùy chọn chỉ phù hợp với cây nguồn Mathlib đầy đủ:
+`linter.checkInitImports` và `linter.allScriptsDocumented`. Các linter trong
+`mathlibStandardSet`, kiểm tra header và giới hạn độ dài tệp vẫn được bật.
+
+Các lệnh build và linter trước đó dừng ở thiết lập dependency: kết nối mạng bị chặn,
+sau đó Git báo `.lake/packages/aesop/.git/index.lock` đã tồn tại. Chưa kiểm tra được
+phụ thuộc tiên đề bằng Lean. Lượt sửa hiện tại chưa được xác minh lại.
+Mỗi lượt Phase 2 tiếp theo cần yêu cầu riêng và không sửa tệp nguồn.
 
 Sau khi được yêu cầu Phase 2, các lệnh build chính của dự án là:
 
@@ -171,7 +180,8 @@ lake build Mathlib.Analysis.Normed.Operator.Cea
 
 Ngoài build, Phase 2 cần review phát biểu và giả thiết, chạy các linter Mathlib phù hợp,
 kiểm tra placeholder/tiên đề và ghi nguyên lệnh cùng kết quả thực tế.
-Các lệnh trong phần này chưa được chạy cho bản refactor.
+Các lệnh này đã được thử cho bản trước nhưng chưa hoàn tất; không được coi đó là
+kết quả build thành công cho bản sửa hiện tại.
 
 ## Quy ước đóng góp và hỗ trợ AI
 
@@ -189,11 +199,12 @@ Tham khảo hướng dẫn chính thức về
 
 **Ghi nhận hỗ trợ AI:** OpenAI Codex được dùng để đọc nguồn Mathlib, đề xuất và viết
 bản refactor Lean, đổi tên API, cập nhật cấu hình và viết lại README này.
-Đây là thay đổi có phần code đáng kể do LLM tạo; chưa có review của người am hiểu Lean
-hoặc xác minh sau chỉnh sửa trong Phase 1.
+Đây là thay đổi có phần code đáng kể do LLM tạo. Review tĩnh bằng Codex không thay
+thế review của người am hiểu Lean hoặc kiểm tra proof bằng Lean.
 
 Trước khi nộp upstream, người đóng góp cần tự hiểu và chịu trách nhiệm về code,
 khai báo công cụ và phạm vi sử dụng AI trong mô tả PR, và áp dụng nhãn `LLM-generated`
 theo chính sách Mathlib. Chính sách không cho phép dùng LLM để viết bình luận trên
-GitHub hoặc Zulip. Ghi nhận này là tài liệu nội bộ của repository; Phase 1 không tạo PR,
-commit, push hay đăng bình luận.
+GitHub hoặc Zulip. Ghi nhận này là tài liệu của repository. Theo yêu cầu của chủ dự án,
+các bản sửa được đẩy lên nhánh `codex/mathlib-cea-phase1`; chưa mở PR upstream
+hay đăng bình luận.

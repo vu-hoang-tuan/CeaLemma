@@ -9,8 +9,6 @@ pp.unicode.fun = true
 autoImplicit = false
 weak.linter.mathlibStandardSet = true
 weak.linter.style.header = true
-weak.linter.checkInitImports = true
-weak.linter.allScriptsDocumented = true
 weak.linter.style.longFile = 1500
 maxSynthPendingDepth = 3
 
