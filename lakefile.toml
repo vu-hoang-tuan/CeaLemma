@@ -3,6 +3,8 @@ version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["CeaLemma"]
 requiresModuleSystem = true
+lintDriver = "batteries/runLinter"
+lintDriverArgs = ["Cea"]
 
 [leanOptions]
 pp.unicode.fun = true
@@ -19,5 +21,8 @@ scope = "leanprover-community"
 rev = "dde65624ecc7ebb09c14a4c2d5a13bedc94c939c"
 
 [[lean_lib]]
+name = "Cea"
+srcDir = "Mathlib/Analysis/Normed/Operator"
+
+[[lean_lib]]
 name = "CeaLemma"
-roots = ["CeaLemma", "Mathlib.Analysis.Normed.Operator.Cea"]

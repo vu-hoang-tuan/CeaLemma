@@ -5,12 +5,13 @@ Authors: Vũ Hoàng Tuấn
 -/
 module
 
-public import Mathlib.Analysis.Normed.Operator.Cea
+public import Cea
 
 /-!
 # Céa's lemma
 
-This downstream entry point re-exports `Mathlib.Analysis.Normed.Operator.Cea`.
+This downstream entry point re-exports `Cea`, built from the contribution source at
+`Mathlib/Analysis/Normed/Operator/Cea.lean`.
 The contribution module contains the quasi-optimality estimates for coercive continuous
 bilinear forms on real seminormed spaces.
 -/

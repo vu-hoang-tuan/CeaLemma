@@ -4,9 +4,9 @@ Dự án hình thức hóa chặn sai số gần tối ưu của phương pháp 
 đóng góp module `Mathlib.Analysis.Normed.Operator.Cea` vào Mathlib.
 Đây là thư viện định lý về xấp xỉ, không phải chương trình giải PDE bằng phương pháp số.
 
-**Trạng thái:** đang sửa các vấn đề phát hiện trong Phase 2. Lượt kiểm tra trước đã
-review tĩnh phát biểu và giả thiết; các lệnh build, linter và kiểm tra tiên đề bị chặn
-ở bước thiết lập dependency. Chưa có kết quả biên dịch thành công cho bản refactor.
+**Trạng thái:** đã sửa lỗi khử nhân tử và xung đột module được CI phát hiện trong
+Phase 2, đồng thời bổ sung lint driver. Bản sửa này chưa được xác minh lại;
+chưa có kết quả build, lint hoặc kiểm tra phụ thuộc tiên đề thành công.
 
 ## Phát biểu toán học
 
@@ -92,11 +92,17 @@ Các bổ đề bao quanh tính song tuyến tính, chặn tại vectơ sai số
 
 ## Sử dụng và chuyển từ API cũ
 
-Import trực tiếp module đóng góp:
+Trong repository downstream, import module gốc:
 
 ```lean
-import Mathlib.Analysis.Normed.Operator.Cea
+import CeaLemma
 ```
+
+Lake biên dịch tệp `Mathlib/Analysis/Normed/Operator/Cea.lean` thành module local
+`Cea` qua `srcDir`; wrapper `CeaLemma` re-export module này. Cách cấu hình này tránh
+tranh chấp tiền tố module `Mathlib` với dependency, không sao chép mã nguồn hoặc
+đổi namespace định lý. Khi đưa tệp vào Mathlib upstream, đường dẫn import là
+`Mathlib.Analysis.Normed.Operator.Cea`.
 
 Khi đã có `hα`, `hcoer`, `huₕ` và `horth` như trên, áp dụng:
 
@@ -139,7 +145,7 @@ Các đoạn Lean trong README là hướng dẫn sử dụng, chưa được bi
 | --- | --- |
 | [`Mathlib/Analysis/Normed/Operator/Cea.lean`](Mathlib/Analysis/Normed/Operator/Cea.lean) | Toàn bộ phần toán học đề xuất cho Mathlib. |
 | [`CeaLemma.lean`](CeaLemma.lean) | Module tiện ích của dự án, chỉ re-export module đóng góp. |
-| [`lakefile.toml`](lakefile.toml) | Khai báo hai module gốc trong thư viện downstream `CeaLemma` và tùy chọn Mathlib. |
+| [`lakefile.toml`](lakefile.toml) | Khai báo thư viện local `Cea`, wrapper `CeaLemma`, lint driver và tùy chọn Mathlib. |
 | [`lake-manifest.json`](lake-manifest.json) | Khóa commit phụ thuộc. |
 | [`lean-toolchain`](lean-toolchain) | Toolchain của Mathlib tại commit đích. |
 | [`LICENSE`](LICENSE) | Giấy phép Apache 2.0. |
@@ -160,28 +166,29 @@ thuộc phần đóng góp upstream.
 
 ## Xác minh — tách biệt với lượt sửa
 
-Phase 2 trước đó không thay đổi tệp nguồn. Review phát hiện bốn module cũ còn sót
-và import tới `CeaLemma.BilinearForm` đã bị xóa; lượt sửa này loại bỏ các module đó.
-Cấu hình downstream cũng bỏ hai tùy chọn chỉ phù hợp với cây nguồn Mathlib đầy đủ:
-`linter.checkInitImports` và `linter.allScriptsDocumented`. Các linter trong
-`mathlibStandardSet`, kiểm tra header và giới hạn độ dài tệp vẫn được bật.
+CI của commit `75517510d3f6d866e6608eab4a79f31258ed0c32` đã báo hai lỗi:
+Lake tìm module mới trong dependency Mathlib thay vì nguồn downstream; bước khử
+nhân tử dùng `mul_le_mul_iff_right₀` trong khi nhân tử chung nằm bên phải.
+Bản sửa dùng module local `Cea` và `mul_le_mul_iff_left₀` tương ứng.
+Phát biểu và giả thiết của các định lý được giữ nguyên.
 
-Các lệnh build và linter trước đó dừng ở thiết lập dependency: kết nối mạng bị chặn,
-sau đó Git báo `.lake/packages/aesop/.git/index.lock` đã tồn tại. Chưa kiểm tra được
-phụ thuộc tiên đề bằng Lean. Lượt sửa hiện tại chưa được xác minh lại.
-Mỗi lượt Phase 2 tiếp theo cần yêu cầu riêng và không sửa tệp nguồn.
+CI trước đó bỏ qua `lake lint` vì chưa có lint driver. Cấu hình mới dùng
+`batteries/runLinter` với đối số `Cea` để chọn các khai báo theo module nguồn,
+kể cả các khai báo trong namespace `ContinuousLinearMap` và `IsCoercive`.
+Các linter cú pháp trong `mathlibStandardSet`, header và độ dài tệp vẫn được bật.
 
-Sau khi được yêu cầu Phase 2, các lệnh build chính của dự án là:
+Lượt sửa này không chạy build, lint hoặc kiểm tra proof. Mỗi lượt Phase 2 cần
+yêu cầu riêng và không sửa tệp nguồn. Các lệnh chính dành cho Phase 2:
 
 ```bash
 lake build
-lake build Mathlib.Analysis.Normed.Operator.Cea
+lake build Cea
+lake lint
 ```
 
-Ngoài build, Phase 2 cần review phát biểu và giả thiết, chạy các linter Mathlib phù hợp,
-kiểm tra placeholder/tiên đề và ghi nguyên lệnh cùng kết quả thực tế.
-Các lệnh này đã được thử cho bản trước nhưng chưa hoàn tất; không được coi đó là
-kết quả build thành công cho bản sửa hiện tại.
+Ngoài các lệnh này, Phase 2 cần review phát biểu và giả thiết, kiểm tra phong cách,
+placeholder và phụ thuộc tiên đề, đồng thời ghi nguyên lệnh cùng kết quả thực tế.
+Cần xác minh riêng đường dẫn module khi tích hợp vào checkout Mathlib upstream.
 
 ## Quy ước đóng góp và hỗ trợ AI
 

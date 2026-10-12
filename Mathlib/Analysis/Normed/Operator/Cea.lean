@@ -64,7 +64,7 @@ theorem norm_sub_le_mul_norm_sub_of_bound (hcont : ‖B‖ ≤ M) (hα : 0 < α)
     _ ≤ ‖B (u - uₕ) (u - vₕ)‖ := by simpa only [Real.norm_eq_abs] using le_abs_self _
     _ ≤ M * ‖u - uₕ‖ * ‖u - vₕ‖ := B.le_of_opNorm₂_le_of_le hcont le_rfl le_rfl
     _ = M * ‖u - vₕ‖ * ‖u - uₕ‖ := mul_right_comm _ _ _
-  have hcancel := (mul_le_mul_iff_right₀ hpos).mp hbound
+  have hcancel := (mul_le_mul_iff_left₀ hpos).mp hbound
   calc
     ‖u - uₕ‖ ≤ (M * ‖u - vₕ‖) / α :=
       (le_div_iff₀ hα).2 (by simpa only [mul_comm α] using hcancel)
