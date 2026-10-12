@@ -1,21 +1,16 @@
-import CeaLemma.BilinearForm
-import CeaLemma.CeaBound
-import CeaLemma.CeaFinal
-import CeaLemma.Galerkin
-import CeaLemma.Verify
+/-
+Copyright (c) 2026 Vũ Hoàng Tuấn. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Vũ Hoàng Tuấn
+-/
+module
+
+public import Mathlib.Analysis.Normed.Operator.Cea
 
 /-!
 # Céa's lemma
 
-This library formalizes the quasi-optimality of Galerkin approximations for real bilinear forms
-with continuity and coercivity bounds on normed vector spaces.
-
-## Main results
-
-* `Cea.galerkin_orthogonality`: derive orthogonality from the exact and discrete weak equations.
-* `Cea.cea_pointwise`: bound the Galerkin error by any admissible approximation error.
-* `Cea.cea_lemma`: bound the Galerkin error by `M / alpha` times the best approximation error.
-
-All declarations are in the `Cea` namespace. This root module also imports `CeaLemma.Verify`,
-which contains diagnostic commands and an explicit application of the main theorem.
+This downstream entry point re-exports `Mathlib.Analysis.Normed.Operator.Cea`.
+The contribution module contains the quasi-optimality estimates for coercive continuous
+bilinear forms on real seminormed spaces.
 -/

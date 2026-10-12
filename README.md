@@ -1,165 +1,199 @@
-# CeaLemma — Hình thức hóa bổ đề Céa bằng Lean 4
+# CeaLemma — Bổ đề Céa trong Lean và Mathlib
 
-CeaLemma là dự án chứng minh hình thức bổ đề Céa bằng **Lean 4** và **Mathlib**.
-Kết quả chính mô tả tính gần tối ưu của xấp xỉ Galerkin: sai số của nghiệm xấp xỉ
-được chặn bởi một hằng số nhân với sai số xấp xỉ tốt nhất trong không gian con đã chọn.
+Dự án hình thức hóa chặn sai số gần tối ưu của phương pháp Galerkin, với mục tiêu
+đóng góp module `Mathlib.Analysis.Normed.Operator.Cea` vào Mathlib.
+Đây là thư viện định lý về xấp xỉ, không phải chương trình giải PDE bằng phương pháp số.
 
-Dự án làm việc trên không gian vectơ định chuẩn thực. Mỗi proof được viết thành
-một hạng chứng minh để Lean kiểm tra; đây là thư viện định lý, không phải chương trình
-số dùng để tính nghiệm của một phương trình cụ thể.
+**Trạng thái:** bản refactor Phase 1; chưa chạy build, linter, kiểm tra tiên đề hoặc
+review bản code và README sau chỉnh sửa. Các bước xác minh thuộc Phase 2 riêng biệt.
 
 ## Phát biểu toán học
 
-Cho $V$ là không gian vectơ định chuẩn trên $\mathbb{R}$,
-$V_h \subseteq V$ là không gian con tuyến tính, và
-$a : V \times V \to \mathbb{R}$ là dạng song tuyến tính. Giả sử:
+Cho $E$ là không gian vectơ nửa định chuẩn trên $\mathbb{R}$,
+$K\subseteq E$ là không gian con tuyến tính và $B$ là dạng song tuyến tính liên tục.
+Giả sử $\alpha>0$ và
 
-- **Chặn liên tục:** tồn tại hằng số $M \ge 0$ sao cho
-  $|a(w,v)| \le M\lVert w\rVert\lVert v\rVert$ với mọi $w,v \in V$.
-- **Chặn cưỡng bức (coercivity):** có $\alpha > 0$ sao cho
-  $\alpha\lVert v\rVert^2 \le a(v,v)$ với mọi $v \in V$.
-- **Xấp xỉ thuộc không gian con:** $u_h \in V_h$.
-- **Trực giao Galerkin:** $a(u-u_h,v_h)=0$ với mọi $v_h \in V_h$.
+$$
+\alpha\lVert v\rVert^2\le B(v,v)\qquad (v\in E).
+$$
 
-Khi đó:
+Cho $u\in E$ và $u_h\in K$ thỏa mãn trực giao Galerkin:
+
+$$
+B(u-u_h,v)=0\qquad (v\in K).
+$$
+
+Với mọi $M\ge\lVert B\rVert$, bổ đề Céa cho chặn
 
 $$
 \lVert u-u_h\rVert
-\le \frac{M}{\alpha}\inf_{v_h\in V_h}\lVert u-v_h\rVert.
+\le \frac{M}{\alpha}\inf_{v\in K}\lVert u-v\rVert.
 $$
 
-Đây là định lý `Cea.cea_lemma`. Trước khi lấy infimum, dự án chứng minh
-`Cea.cea_pointwise` cho từng vectơ $v_h \in V_h$:
+Có thể chọn $M=\lVert B\rVert$, là chuẩn toán tử của ánh xạ tuyến tính liên tục
+$B:E\to(E\to\mathbb{R})$. Bản phát biểu dùng `Metric.infDist u (K : Set E)`
+cho infimum bên phải. Tập `K` không rỗng vì chứa `0`.
 
-$$
-\lVert u-u_h\rVert \le \frac{M}{\alpha}\lVert u-v_h\rVert.
-$$
+Kết quả chỉ cần nửa định chuẩn, do đó bao gồm trường hợp không gian định chuẩn
+của phiên bản trước. Không cần tính đầy đủ của `E`, tính đối xứng của `B`,
+tính đóng hay hữu hạn chiều của `K`, hoặc sự tồn tại của vectơ đạt infimum.
+Định lý giả sử đã có nghiệm và xấp xỉ thỏa mãn các điều kiện trên; nó không xây dựng chúng.
 
-Hệ số $M/\alpha$ cho biết mức chênh lệch mà chặn sai số cho phép so với
-khả năng xấp xỉ tốt nhất của $V_h$.
+## API và quy ước tên
 
-## Các khái niệm trong code
+Mã nguồn dùng các khái niệm sẵn có của Mathlib:
 
-Tất cả định nghĩa và định lý của dự án nằm trong namespace `Cea`.
-
-| Tên trong Lean | Ý nghĩa |
+| Thành phần | Biểu diễn trong Lean |
 | --- | --- |
-| `LinearMap.BilinForm ℝ V` | Dạng song tuyến tính thực trên `V`, do Mathlib cung cấp. |
-| `Submodule ℝ V` | Không gian con tuyến tính `Vh`. |
-| `Cea.HasContinuityBound a M` | Bất đẳng thức chặn liên tục của `a`. |
-| `Cea.HasCoercivityBound a alpha` | Bất đẳng thức chặn cưỡng bức của `a`. |
-| `Cea.IsGalerkinOrthogonal a Vh u uh` | Sai số `u - uh` trực giao với `Vh` theo dạng `a`. |
-| `Cea.approxErrors Vh u` | Tập các giá trị `‖u - vh‖` với `vh ∈ Vh`. |
-| `Cea.bestApproxError Vh u` | Infimum thực `sInf` của tập sai số xấp xỉ. |
+| Không gian thực | `[SeminormedAddCommGroup E] [NormedSpace ℝ E]` |
+| Dạng song tuyến tính liên tục | `B : E →L[ℝ] E →L[ℝ] ℝ` |
+| Không gian con | `K : Submodule ℝ E` |
+| Chuẩn toán tử | `‖B‖` |
+| Tính cưỡng bức | `IsCoercive B` |
+| Sai số xấp xỉ tốt nhất | `Metric.infDist u (K : Set E)` |
+| Trực giao Galerkin | `∀ v ∈ K, B (u - uₕ) v = 0` |
 
-Hai định nghĩa về chặn chỉ ghi nhận bất đẳng thức. Các điều kiện `0 ≤ M` và
-`0 < alpha` được truyền riêng vào định lý. Tương tự, điều kiện `uh ∈ Vh`
-được truyền riêng, không nằm trong định nghĩa trực giao Galerkin.
+`IsCoercive B` đã được Mathlib định nghĩa bằng sự tồn tại của một hằng số dương
+`α` thỏa `∀ v, α * ‖v‖ * ‖v‖ ≤ B v v`. Các định lý có hệ số tường minh nhận
+`hα : 0 < α` và `hcoer` riêng để người dùng lựa chọn hằng số này.
 
-`bestApproxError` là định nghĩa `noncomputable`: dự án dùng infimum để phát biểu
-và chứng minh chặn sai số, không đưa ra thuật toán tìm vectơ xấp xỉ tốt nhất.
-Tập sai số không rỗng vì `0 ∈ Vh`, và bị chặn dưới bởi `0`.
+Các tên định lý mô tả kết luận theo cách đặt tên của Mathlib; `infDist` giữ nguyên
+cách viết của định nghĩa được nhắc tới. Namespace `Cea` và các predicate riêng
+của phiên bản trước được loại bỏ.
+
+| Định lý | Nội dung |
+| --- | --- |
+| `ContinuousLinearMap.norm_sub_le_mul_norm_sub_of_bound` | Chặn sai số bởi `(M / α) * ‖u - vₕ‖` với mọi `vₕ ∈ K`. |
+| `ContinuousLinearMap.norm_sub_le_mul_infDist_of_bound` | Bổ đề Céa với `hcont : ‖B‖ ≤ M`. |
+| `ContinuousLinearMap.norm_sub_le_mul_infDist` | Bổ đề Céa với hệ số `‖B‖ / α`. |
+| `IsCoercive.exists_norm_sub_le_mul_infDist` | Một hằng số không âm dùng chung cho mọi không gian con và mọi xấp xỉ Galerkin của dạng cưỡng bức đã cho. |
+
+Tên biến thống nhất: `E` cho không gian, `B` cho dạng song tuyến tính, `K` cho
+không gian con, `u` cho nghiệm, `uₕ` cho xấp xỉ, `vₕ` cho vectơ so sánh,
+`M` cho chặn chuẩn và `α` cho hằng số cưỡng bức. Các giả thiết tương ứng là
+`hcont`, `hα`, `hcoer`, `huₕ`, `horth`, `hvₕ`.
 
 ## Mạch chứng minh
 
-1. **Từ phương trình yếu đến trực giao Galerkin.** Với ánh xạ tuyến tính
-   $L : V \to \mathbb{R}$, nếu $a(u,v)=L(v)$ với mọi $v\in V$ và
-   $a(u_h,v_h)=L(v_h)$ với mọi $v_h\in V_h$, lấy hiệu hai đẳng thức cho
-   `Cea.galerkin_orthogonality`.
-2. **Đồng nhất thức sai số.** Với $e=u-u_h$ và $v_h\in V_h$, tính song tuyến tính
-   cùng trực giao Galerkin cho $a(e,e)=a(e,u-v_h)$.
-3. **Chặn cho từng vectơ.** Kết hợp cưỡng bức và liên tục để có
+1. Với $e=u-u_h$ và $v_h\in K$, dùng $v_h-u_h\in K$ và trực giao Galerkin để có
+   $B(e,e)=B(e,u-v_h)$.
+2. Kết hợp chặn cưỡng bức và chặn chuẩn toán tử:
    $\alpha\lVert e\rVert^2\le M\lVert e\rVert\lVert u-v_h\rVert$.
-   Proof xử lý riêng trường hợp $\lVert e\rVert=0$ trước khi khử nhân tử này.
-4. **Chuyển sang infimum.** Khi $M>0$, thương
-   $\lVert e\rVert/(M/\alpha)$ là chặn dưới của toàn bộ tập sai số xấp xỉ.
-   Dùng tính chất của `sInf` rồi nhân lại với $M/\alpha$ để được kết quả cuối.
-   Trường hợp $M=0$ được xử lý riêng, không chia cho hằng số bằng không.
+   Nếu $\lVert e\rVert>0$, khử nhân tử này rồi chia cho $\alpha$;
+   trường hợp chuẩn bằng không được xử lý riêng.
+3. Dùng `Metric.isGLB_infDist` và `IsGLB.mul_left` để lấy infimum.
+   Phép nhân chỉ đòi hỏi $M/\alpha\ge0$, nên không phải chia cho $M$ hay xử lý riêng $M=0$.
+4. Từ `IsCoercive B`, lấy một hằng số cưỡng bức rồi chọn hệ số gần tối ưu `‖B‖ / α`.
 
-## Phạm vi của kết quả
+Các bổ đề bao quanh tính song tuyến tính, chặn tại vectơ sai số và infimum tự định nghĩa
+được thay bằng API Mathlib. Không còn module chẩn đoán được import vào thư viện.
 
-Định lý chính giả sử đã có `u`, `uh` và các điều kiện nêu trên. Dự án chưa chứng minh
-sự tồn tại hay tính duy nhất của nghiệm của bài toán biến phân, và chưa hình thức hóa
-một bài toán PDE hay lưới phần tử hữu hạn cụ thể.
+## Sử dụng và chuyển từ API cũ
 
-Các proof hiện tại không cần giả thiết `V` đầy đủ, `a` đối xứng, hay `Vh` đóng hoặc
-hữu hạn chiều. Trực giao ở đây được hiểu theo dạng song tuyến tính `a`.
-Infimum không nhất thiết đạt được tại một vectơ trong `Vh`.
-
-## Cấu trúc dự án
-
-| Tệp | Nội dung |
-| --- | --- |
-| [`CeaLemma.lean`](CeaLemma.lean) | Module gốc, import toàn bộ thư viện và module kiểm tra. |
-| [`CeaLemma/BilinearForm.lean`](CeaLemma/BilinearForm.lean) | Định nghĩa các chặn và bổ đề cơ bản về dạng song tuyến tính. |
-| [`CeaLemma/Galerkin.lean`](CeaLemma/Galerkin.lean) | Trực giao Galerkin và đồng nhất thức sai số. |
-| [`CeaLemma/CeaBound.lean`](CeaLemma/CeaBound.lean) | Chặn năng lượng `cea_energy_bound` và chặn từng vectơ `cea_pointwise`. |
-| [`CeaLemma/CeaFinal.lean`](CeaLemma/CeaFinal.lean) | Tập sai số, sai số tốt nhất và định lý `cea_lemma`. |
-| [`CeaLemma/Verify.lean`](CeaLemma/Verify.lean) | Lệnh kiểm tra kiểu, liệt kê tiên đề phụ thuộc và ví dụ áp dụng định lý. |
-| [`lean-toolchain`](lean-toolchain) | Phiên bản Lean của dự án. |
-| [`lakefile.toml`](lakefile.toml) | Cấu hình thư viện, phụ thuộc Mathlib và tùy chọn Lean. |
-| [`lake-manifest.json`](lake-manifest.json) | Các commit phụ thuộc đã được khóa để tái lập môi trường. |
-
-Có thể đọc các module theo thứ tự `BilinearForm`, `Galerkin`, `CeaBound`, `CeaFinal`,
-sau đó xem ví dụ trong `Verify`.
-
-## Cài đặt và build
-
-Cài Git và [Lean thông qua elan](https://leanprover-community.github.io/get_started.html).
-Nếu dùng VS Code, cài thêm extension **Lean 4** và mở thư mục gốc của dự án.
-
-Phiên bản đang được cấu hình:
-
-- Lean: `leanprover/lean4:v4.35.0-rc4`.
-- Mathlib: tag `v4.35.0-rc4`; commit cụ thể được lưu trong `lake-manifest.json`.
-
-Chạy các lệnh sau:
-
-```bash
-git clone https://github.com/vu-hoang-tuan/CeaLemma.git
-cd CeaLemma
-lake exe cache get
-lake build
-```
-
-`elan` chọn toolchain từ `lean-toolchain`. Lệnh `lake exe cache get` tải cache
-biên dịch sẵn của Mathlib; lần thiết lập đầu tiên cần kết nối Internet.
-`lake build` biên dịch thư viện và kiểm tra các proof bằng Lean.
-Giữ `lean-toolchain`, `lakefile.toml` và `lake-manifest.json` đồng bộ khi chủ động
-nâng phiên bản phụ thuộc.
-
-## Sử dụng và kiểm tra định lý
-
-Trong một tệp Lean thuộc dự án, import module gốc:
+Import trực tiếp module đóng góp:
 
 ```lean
-import CeaLemma
-
-#check Cea.galerkin_orthogonality
-#check Cea.cea_pointwise
-#check Cea.cea_lemma
+import Mathlib.Analysis.Normed.Operator.Cea
 ```
 
-Để dùng `Cea.cea_lemma`, cung cấp lần lượt dạng song tuyến tính, không gian con,
-các hằng số, các chặn, hai vectơ và các giả thiết về nghiệm xấp xỉ.
-[`CeaLemma/Verify.lean`](CeaLemma/Verify.lean) có một `example` đầy đủ theo đúng thứ tự
-tham số này.
+Khi đã có `hα`, `hcoer`, `huₕ` và `horth` như trên, áp dụng:
 
-Sau khi build, có thể chạy trực tiếp module kiểm tra:
+```lean
+exact B.norm_sub_le_mul_infDist hα hcoer huₕ horth
+```
+
+Để giữ hệ số `M / α`, cung cấp thêm `hcont : ‖B‖ ≤ M`:
+
+```lean
+exact B.norm_sub_le_mul_infDist_of_bound hcont hα hcoer huₕ horth
+```
+
+Nếu xuất phát từ phương trình yếu `hexact : ∀ v, B u v = f v` và
+`hdiscrete : ∀ v ∈ K, B uₕ v = f v`, trực giao Galerkin được suy ra bằng API sẵn có:
+
+```lean
+have horth : ∀ v ∈ K, B (u - uₕ) v = 0 := by
+  intro v hv
+  rw [B.map_sub₂, hexact v, hdiscrete v hv, sub_self]
+```
+
+Không cần giả thiết bổ sung về `f` để lấy hiệu hai phương trình này.
+
+Đối với dạng song tuyến tính đại số `a : LinearMap.BilinForm ℝ E` của API cũ,
+chặn `|a v w| ≤ M * ‖v‖ * ‖w‖` cho phép dùng `LinearMap.mkContinuous₂` để tạo `B`.
+`LinearMap.mkContinuous₂_apply` giữ nguyên giá trị của dạng, còn
+`LinearMap.mkContinuous₂_norm_le` cho `‖B‖ ≤ M` khi `0 ≤ M`.
+Do đó việc chuyển sang dạng liên tục không đòi hỏi thêm giả thiết toán học.
+Với `B` đã được đóng gói, `0 ≤ M` suy ra từ `‖B‖ ≤ M` nên không cần truyền riêng.
+Chặn cưỡng bức dùng tích `α * ‖v‖ * ‖v‖`, tương đương `α * ‖v‖ ^ 2`.
+
+`Metric.infDist` thay thế tập `approxErrors` và `bestApproxError`; trên không gian con
+không rỗng, nó biểu diễn cùng infimum khoảng cách. Các tên cũ được bỏ, không giữ alias.
+Các đoạn Lean trong README là hướng dẫn sử dụng, chưa được biên dịch trong Phase 1.
+
+## Tệp và môi trường
+
+| Tệp | Vai trò |
+| --- | --- |
+| [`Mathlib/Analysis/Normed/Operator/Cea.lean`](Mathlib/Analysis/Normed/Operator/Cea.lean) | Toàn bộ phần toán học đề xuất cho Mathlib. |
+| [`CeaLemma.lean`](CeaLemma.lean) | Module tiện ích của dự án, chỉ re-export module đóng góp. |
+| [`lakefile.toml`](lakefile.toml) | Khai báo hai module gốc trong thư viện downstream `CeaLemma` và tùy chọn Mathlib. |
+| [`lake-manifest.json`](lake-manifest.json) | Khóa commit phụ thuộc. |
+| [`lean-toolchain`](lean-toolchain) | Toolchain của Mathlib tại commit đích. |
+| [`LICENSE`](LICENSE) | Giấy phép Apache 2.0. |
+
+Đích là Mathlib `master` tại commit
+[`dde65624ecc7ebb09c14a4c2d5a13bedc94c939c`](https://github.com/leanprover-community/mathlib4/commit/dde65624ecc7ebb09c14a4c2d5a13bedc94c939c),
+đọc ngày 12/10/2026. Toolchain của commit này là `leanprover/lean4:v4.35.0-rc4`.
+Cấu hình và manifest khóa cùng commit để tái lập môi trường; không dùng tag phát hành
+làm mốc Mathlib cho bản đóng góp này. Các workflow phát hành/cập nhật tag hiện có là
+hạ tầng của repository downstream, không thuộc module đề xuất cho Mathlib.
+
+Mã toán học nằm trong `Analysis/Normed/Operator` vì chỉ cần cấu trúc nửa định chuẩn,
+không cần cấu trúc tích vô hướng của module `InnerProductSpace/LaxMilgram`.
+Khi đưa module vào checkout upstream, cần thêm
+`public import Mathlib.Analysis.Normed.Operator.Cea` vào danh sách import của
+`Mathlib.lean`. Wrapper `CeaLemma.lean`, cấu hình Lake và workflow downstream không
+thuộc phần đóng góp upstream.
+
+## Xác minh — dành riêng cho Phase 2
+
+Phase 1 chỉ sửa mã nguồn, cấu hình và tài liệu. Chưa có kết luận về khả năng biên dịch,
+các linter, phụ thuộc tiên đề hoặc tính đúng của bản chỉnh sửa.
+Phase 2 chỉ bắt đầu khi có yêu cầu riêng và không sửa tệp nguồn.
+
+Sau khi được yêu cầu Phase 2, các lệnh build chính của dự án là:
 
 ```bash
-lake env lean CeaLemma/Verify.lean
+lake build
+lake build Mathlib.Analysis.Normed.Operator.Cea
 ```
 
-Module dùng `#check` để hiển thị kiểu của các khai báo và `#print axioms Cea.cea_lemma`
-để liệt kê các tiên đề mà proof phụ thuộc vào. Ví dụ trong module kiểm tra việc áp dụng
-định lý với đầy đủ giả thiết.
+Ngoài build, Phase 2 cần review phát biểu và giả thiết, chạy các linter Mathlib phù hợp,
+kiểm tra placeholder/tiên đề và ghi nguyên lệnh cùng kết quả thực tế.
+Các lệnh trong phần này chưa được chạy cho bản refactor.
 
-## Quy ước trình bày
+## Quy ước đóng góp và hỗ trợ AI
 
-Code dùng module docstring `/-! ... -/`, docstring cho khai báo `/-- ... -/`, thụt lề
-proof hai dấu cách và dòng Lean không quá 100 ký tự theo
-[hướng dẫn phong cách Mathlib](https://leanprover-community.github.io/contribute/style.html).
-Docstring trong code dùng tiếng Anh theo
-[quy ước tài liệu Mathlib](https://leanprover-community.github.io/contribute/doc.html);
-README này giải thích dự án bằng tiếng Việt.
+Tên và cấu trúc module dựa trên các API hiện có trong
+`Mathlib.Analysis.Normed.Operator.NormedSpace`,
+`Mathlib.Analysis.Normed.Operator.Bilinear` và
+`Mathlib.Topology.MetricSpace.HausdorffDistance` tại commit đã khóa.
+Tài liệu trong Lean dùng tiếng Anh; README dùng tiếng Việt.
+
+Tham khảo hướng dẫn chính thức về
+[đóng góp và chính sách AI](https://leanprover-community.github.io/contribute/index.html),
+[phong cách](https://leanprover-community.github.io/contribute/style.html),
+[đặt tên](https://leanprover-community.github.io/contribute/naming.html) và
+[tài liệu](https://leanprover-community.github.io/contribute/doc.html).
+
+**Ghi nhận hỗ trợ AI:** OpenAI Codex được dùng để đọc nguồn Mathlib, đề xuất và viết
+bản refactor Lean, đổi tên API, cập nhật cấu hình và viết lại README này.
+Đây là thay đổi có phần code đáng kể do LLM tạo; chưa có review của người am hiểu Lean
+hoặc xác minh sau chỉnh sửa trong Phase 1.
+
+Trước khi nộp upstream, người đóng góp cần tự hiểu và chịu trách nhiệm về code,
+khai báo công cụ và phạm vi sử dụng AI trong mô tả PR, và áp dụng nhãn `LLM-generated`
+theo chính sách Mathlib. Chính sách không cho phép dùng LLM để viết bình luận trên
+GitHub hoặc Zulip. Ghi nhận này là tài liệu nội bộ của repository; Phase 1 không tạo PR,
+commit, push hay đăng bình luận.

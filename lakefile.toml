@@ -2,18 +2,24 @@ name = "CeaLemma"
 version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["CeaLemma"]
+requiresModuleSystem = true
 
 [leanOptions]
-pp.unicode.fun = true # pretty-prints `fun a ↦ b`
-relaxedAutoImplicit = false
+pp.unicode.fun = true
+autoImplicit = false
 weak.linter.mathlibStandardSet = true
-linter.style.header = false
+weak.linter.style.header = true
+weak.linter.checkInitImports = true
+weak.linter.allScriptsDocumented = true
+weak.linter.style.longFile = 1500
 maxSynthPendingDepth = 3
 
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.35.0-rc4"
+# Mathlib master snapshot, 2026-10-12; its toolchain is v4.35.0-rc4.
+rev = "dde65624ecc7ebb09c14a4c2d5a13bedc94c939c"
 
 [[lean_lib]]
 name = "CeaLemma"
+roots = ["CeaLemma", "Mathlib.Analysis.Normed.Operator.Cea"]
