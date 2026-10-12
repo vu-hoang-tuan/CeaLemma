@@ -1,0 +1,85 @@
+name: Phase 2 verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/mathlib-cea-phase1]
+    paths: [.github/workflows/phase2-verification.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the source under verification
+        uses: actions/checkout@v7
+        with:
+          ref: 2b30b526e097b825861561447e6be35b717ec4db
+          path: project
+
+      - name: Build, lint, and audit downstream axioms
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: project
+          build: "true"
+          lint: "true"
+          axiom-audit: "true"
+          axiom-audit-allow: propext,Classical.choice,Quot.sound
+
+      - name: Check out the target Mathlib snapshot
+        uses: actions/checkout@v7
+        with:
+          repository: leanprover-community/mathlib4
+          ref: dde65624ecc7ebb09c14a4c2d5a13bedc94c939c
+          path: upstream
+
+      - name: Fetch upstream dependency artifacts
+        working-directory: upstream
+        run: |
+          lake exe cache get \
+            Mathlib.Analysis.Normed.Operator.NormedSpace \
+            Mathlib.Topology.MetricSpace.HausdorffDistance
+
+      - name: Build the unchanged contribution under its upstream module name
+        working-directory: upstream
+        run: |
+          cp ../project/Mathlib/Analysis/Normed/Operator/Cea.lean \
+            Mathlib/Analysis/Normed/Operator/Cea.lean
+          cmp ../project/Mathlib/Analysis/Normed/Operator/Cea.lean \
+            Mathlib/Analysis/Normed/Operator/Cea.lean
+          lake build Mathlib.Analysis.Normed.Operator.Cea
+
+      - name: Run upstream declaration linters
+        working-directory: upstream
+        run: |
+          lake exe batteries/runLinter --no-build Mathlib.Analysis.Normed.Operator.Cea
+
+      - name: Run upstream text-based style checks
+        working-directory: upstream
+        run: |
+          # lint-style selects the imports of its argument; this is a temporary driver.
+          trap 'rm -f Mathlib/CeaPhase2Imports.lean' EXIT
+          cat > Mathlib/CeaPhase2Imports.lean <<'LEAN'
+          module
+          public import Mathlib.Analysis.Normed.Operator.Cea
+          LEAN
+          lake exe lint-style Mathlib.CeaPhase2Imports
+
+      - name: Print the four theorem axiom dependencies
+        working-directory: upstream
+        run: |
+          lake env lean --stdin <<'LEAN'
+          import Mathlib.Analysis.Normed.Operator.Cea
+          #print axioms ContinuousLinearMap.norm_sub_le_mul_norm_sub_of_bound
+          #print axioms ContinuousLinearMap.norm_sub_le_mul_infDist_of_bound
+          #print axioms ContinuousLinearMap.norm_sub_le_mul_infDist
+          #print axioms IsCoercive.exists_norm_sub_le_mul_infDist
+          LEAN
+
+      - name: Confirm the project source was not modified
+        if: always()
+        working-directory: project
+        run: git diff --exit-code
